@@ -1,2 +1,2 @@
 # go-stock
-Home Stock Management Made Easy🚀
+Home Stock Management Made Easy
