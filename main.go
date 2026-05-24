@@ -139,6 +139,11 @@ func main() {
 		Help:     "Display version information and exit",
 	})
 
+	port := parser.String("p", "port", &argparse.Options{
+		Required: false,
+		Help:     "Port to listen on (default: 8080)",
+	})
+
 	// 2. Parse the arguments
 	err = parser.Parse(os.Args)
 	if err != nil {
@@ -276,8 +281,11 @@ func main() {
 	http.HandleFunc("/kiosk", kioskHandler)
 
 	// Start the HTTP server
-	slog.Info("Starting HTTP server on :8080")
-	err = http.ListenAndServe(":8080", nil)
+	if *port == "" {
+		*port = "8080"
+	}
+	slog.Info("Starting HTTP server on port", "port", *port)
+	err = http.ListenAndServe(":"+*port, nil)
 	if err != nil {
 		slog.Error("Failed to start HTTP server", "error", err)
 		os.Exit(1)
