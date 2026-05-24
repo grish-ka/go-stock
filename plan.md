@@ -124,3 +124,116 @@ handler := tint.NewHandler(os.Stdout, &tint.Options{
 })
 slog.SetDefault(slog.New(handler))
 ```
+
+Next it inserts the item:
+```go
+// Insert the item into the database
+insertSQL := "INSERT INTO inventory (name, date_bought, expiration_date) VALUES (?, ?, ?)"
+_, err = db.Exec(insertSQL, Item1.Name, Item1.DateBought, Item1.ExpirationDate)
+if err != nil {
+    slog.Error("Failed to insert item #", "item_id", Item1.ID, "error", err)
+    os.Exit(1)
+}
+slog.Info("Item inserted successfully")
+```
+
+Now in the next commit it can extract the same thing and check if it is the same!
+```go
+ExportId := 1
+exportSQL := "SELECT id, name, date_bought, expiration_date FROM inventory WHERE id = ?"
+row := db.QueryRow(exportSQL, ExportId)
+var Exported Item
+err = row.Scan(&Exported.ID, &Exported.Name, &Exported.DateBought, &Exported.ExpirationDate)
+if err != nil {
+    slog.Error("Failed to scan item", "item_id", ExportId, "error", err)
+    os.Exit(1)
+}
+
+slog.Debug("Struct Verification", "exported", Exported)
+
+// Compare the original Item1 with the exported item
+if Item1 == Exported {
+    slog.Info("Item1 and Exported are equal and the item was extracted successfully")
+} else {
+    slog.Error("Item1 and Exported differ and the item was not extracted successfully", "original", Item1, "exported", Exported)
+}
+```
+
+### 2. Website
+The Handlers are pretty simple :
+1. Home Page
+```go
+func homeHandler(w http.ResponseWriter, r *http.Request) {
+	slog.Debug("Home Page called by", "client_ip", r.RemoteAddr)
+	fmt.Fprintf(w, "Welcome to Go-Stock! Your home stock management made easy.")
+	// Placeholder for home page logic
+}
+```
+
+2. Kiosk Page
+
+```go
+func kioskHandler(w http.ResponseWriter, r *http.Request) {
+	slog.Debug("Kiosk Page called by", "client_ip", r.RemoteAddr)
+	fmt.Fprintf(w, "Welcome to Go-Stock! Your home stock management made easy.")
+	fmt.Fprintf(w, "This is the kiosk page where you can quickly log items on the screen.")
+	// Placeholder for kiosk page logic
+}
+```
+
+The server startup code is simple
+```go
+// Set up HTTP handlers
+slog.Info("Setting up HTTP handlers")
+http.HandleFunc("/", homeHandler)
+http.HandleFunc("/kiosk", kioskHandler)
+
+// Start the HTTP server
+slog.Info("Starting HTTP server on :8080")
+err = http.ListenAndServe(":8080", nil)
+if err != nil {
+    slog.Error("Failed to start HTTP server", "error", err)
+    os.Exit(1)
+}
+```
+
+Then I made a helper function called `printItem`
+```go
+func printItem(item Item) string {
+	var output strings.Builder
+	fmt.Fprintf(&output, "ID: %d\n", item.ID)
+	fmt.Fprintf(&output, "Name: %s\n", item.Name)
+	fmt.Fprintf(&output, "Date Bought: %s\n", item.DateBought)
+	fmt.Fprintf(&output, "Expiration Date: %s\n", item.ExpirationDate)
+
+	slog.Debug("Item details:", "item", output.String())
+
+	return output.String()
+}
+```
+
+#### Definitions of routes
+- `/` **Home Page:** Logging For Items And Stuff
+- `/kiosk` **Kiosk Page:** Modified Version Of Home Page For Touchscreens
+
+there is also a list items function
+```go
+func listItems() ([]Item, error) {
+	rows, err := db.Query("SELECT id, name, date_bought, expiration_date FROM inventory")
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	var items []Item
+	for rows.Next() {
+		var item Item
+		err := rows.Scan(&item.ID, &item.Name, &item.DateBought, &item.ExpirationDate)
+		if err != nil {
+			return nil, err
+		}
+		items = append(items, item)
+	}
+	return items, nil
+}
+```

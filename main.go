@@ -6,6 +6,8 @@ import (
 	"log/slog"
 	"os"
 	"time"
+	"net/http"
+	"strings"
 
 	"github.com/akamensky/argparse"
 	"github.com/lmittmann/tint"
@@ -24,7 +26,71 @@ var db *sql.DB
 var dbPath = "go-stock.db"
 var err error
 
+func printItem(item Item) string {
+	var output strings.Builder
+	fmt.Fprintf(&output, "ID: %d\n", item.ID)
+	fmt.Fprintf(&output, "Name: %s\n", item.Name)
+	fmt.Fprintf(&output, "Date Bought: %s\n", item.DateBought)
+	fmt.Fprintf(&output, "Expiration Date: %s\n", item.ExpirationDate)
+
+	slog.Debug("Item details:", "item", output.String())
+
+	return output.String()
+}
+
+func listItems() ([]Item, error) {
+	rows, err := db.Query("SELECT id, name, date_bought, expiration_date FROM inventory")
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	var items []Item
+	for rows.Next() {
+		var item Item
+		err := rows.Scan(&item.ID, &item.Name, &item.DateBought, &item.ExpirationDate)
+		if err != nil {
+			return nil, err
+		}
+		items = append(items, item)
+	}
+	return items, nil
+}
+
 // END OF READ ONLY SECTOR
+
+func homeHandler(w http.ResponseWriter, r *http.Request) {
+	slog.Debug("Home Page called by", "client_ip", r.RemoteAddr)
+	fmt.Fprintf(w, "Welcome to Go-Stock! Your home stock management made easy.\n\n")
+	fmt.Fprint(w, "All Items:\n")
+	items, err := listItems()
+	if err != nil {
+		slog.Error("Failed to list items", "error", err)
+		fmt.Fprint(w, "Error retrieving items")
+		return
+	}
+	for _, item := range items {
+		fmt.Fprint(w, printItem(item))
+	}
+	// Placeholder for home page logic
+}
+
+func kioskHandler(w http.ResponseWriter, r *http.Request) {
+	slog.Debug("Kiosk Page called by", "client_ip", r.RemoteAddr)
+	fmt.Fprintf(w, "Welcome to Go-Stock! Your home stock management made easy.")
+	fmt.Fprintf(w, "This is the kiosk page where you can quickly log items on the screen.\n\n")
+	fmt.Fprint(w, "All Items:\n")
+	items, err := listItems()
+	if err != nil {
+		slog.Error("Failed to list items", "error", err)
+		fmt.Fprint(w, "Error retrieving items")
+		return
+	}
+	for _, item := range items {
+		fmt.Fprint(w, printItem(item))
+	}
+	// Placeholder for kiosk page logic
+}
 
 func main() {
 	// 1. Initialize the argparse parser first
@@ -57,6 +123,10 @@ func main() {
 
 	// --- Core logic starts here ---
 	slog.Info("go-stock started")
+	slog.Info("----------TESTS----------")
+	if *verbose {
+		slog.Warn("Verbose logging enabled")
+	}
 	slog.Info("Connecting to database...")
 
 	db, err = sql.Open("sqlite", dbPath)
@@ -98,7 +168,67 @@ func main() {
 		DateBought:     cleanDate,
 		ExpirationDate: cleanExpirationDate,
 	}
+	Item2 := Item{
+		ID:             2,
+		Name:           "Bread",
+		DateBought:     cleanDate,
+		ExpirationDate: cleanExpirationDate,
+	}
 
 	// This debug line will show up if you pass -v or --verbose
-	slog.Debug("Struct verification", "item", Item1)
+	slog.Debug("Struct verification", "item", printItem(Item1))
+	slog.Debug("Struct verification", "item", printItem(Item2))
+
+
+	// Insert the item into the database
+	insertSQL := "INSERT INTO inventory (name, date_bought, expiration_date) VALUES (?, ?, ?)"
+	_, err = db.Exec(insertSQL, Item1.Name, Item1.DateBought, Item1.ExpirationDate)
+	if err != nil {
+		slog.Error("Failed to insert item", "item_id", Item1.ID, "error", err)
+		os.Exit(1)
+	}
+	slog.Info("Item inserted successfully")
+
+	// Insert the item into the database
+	_, err = db.Exec(insertSQL, Item2.Name, Item2.DateBought, Item2.ExpirationDate)
+	if err != nil {
+		slog.Error("Failed to insert item", "item_id", Item2.ID, "error", err)
+		os.Exit(1)
+	}
+	slog.Info("Item inserted successfully")
+
+	ExportId := 1
+	exportSQL := "SELECT id, name, date_bought, expiration_date FROM inventory WHERE id = ?"
+	row := db.QueryRow(exportSQL, ExportId)
+	var Exported Item
+	err = row.Scan(&Exported.ID, &Exported.Name, &Exported.DateBought, &Exported.ExpirationDate)
+	if err != nil {
+		slog.Error("Failed to scan item", "item_id", ExportId, "error", err)
+		os.Exit(1)
+	}
+
+	slog.Debug("Struct Verification", "exported", printItem(Exported))
+
+	// Compare the original Item1 with the exported item
+	if Item1 == Exported {
+		slog.Info("Item1 and Exported are equal and the item was extracted successfully")
+	} else {
+		slog.Error("Item1 and Exported differ and the item was not extracted successfully", "original", printItem(Item1), "exported", printItem(Exported))
+	}
+
+	slog.Info("----------WEB SERVER----------")
+
+
+	// Set up HTTP handlers
+	slog.Info("Setting up HTTP handlers")
+	http.HandleFunc("/", homeHandler)
+	http.HandleFunc("/kiosk", kioskHandler)
+
+	// Start the HTTP server
+	slog.Info("Starting HTTP server on :8080")
+	err = http.ListenAndServe(":8080", nil)
+	if err != nil {
+		slog.Error("Failed to start HTTP server", "error", err)
+		os.Exit(1)
+	}
 }
