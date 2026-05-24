@@ -14,30 +14,43 @@ import (
 	_ "modernc.org/sqlite"
 )
 
-
+var Version = "go-stock version 0.1.0-beta.2"
 
 func homeHandler(w http.ResponseWriter, r *http.Request) {
 	slog.Debug("Home Page called by", "client_ip", r.RemoteAddr)
     w.Header().Set("Content-Type", "text/html") // Tells the browser to render HTML
-	items := []Item{} // Initialize an empty slice to hold items
-	searchQuery := "" // Initialize an empty search query
 
 	switch r.Method {
 		case "GET":
-			searchQuery = r.FormValue("search")
+			// DO NOTHING, JUST LOAD THE PAGE
+		
 		case "POST":
-			itemName := r.FormValue("name")
-			// Insert the item into the database
-			insertSQL := "INSERT INTO inventory (name, date_bought, expiration_date) VALUES (?, ?, ?)"
-			_, err = db.Exec(insertSQL, itemName, time.Now().Format("2006-01-02"), r.FormValue("expiration_date"))
-			if err != nil {
-				slog.Error("Failed to insert item", "item_name", itemName, "error", err)
-				fmt.Fprint(w, "Error inserting item")
+			switch r.FormValue("action") {
+				case "add":
+					itemName := r.FormValue("name")
+					// Insert the item into the database
+					insertSQL := "INSERT INTO inventory (name, date_bought, expiration_date) VALUES (?, ?, ?)"
+					_, err = db.Exec(insertSQL, itemName, time.Now().Format("2006-01-02"), r.FormValue("expiration_date"))
+					if err != nil {
+						slog.Error("Failed to insert item", "item_name", itemName, "error", err)
+						fmt.Fprint(w, "Error inserting item")
+					}
+					slog.Debug("Item inserted successfully")
+				case "delete":
+					itemID := r.FormValue("id")
+					deleteSQL := "DELETE FROM inventory WHERE id = ?"
+					_, err = db.Exec(deleteSQL, itemID)
+					if err != nil {
+						slog.Error("Failed to delete item", "item_id", itemID, "error", err)
+						fmt.Fprint(w, "Error deleting item")
+					}
+					slog.Debug("Item deleted successfully")
 			}
-			slog.Debug("Item inserted successfully")
 	}
-    
-	items, err = listItems(searchQuery)
+
+	searchQuery := r.FormValue("search")
+	items, err := listItems(searchQuery)
+
 	if err != nil {
 		slog.Error("Failed to list items", "error", err)
 		fmt.Fprint(w, "Error retrieving items")
@@ -57,19 +70,54 @@ func homeHandler(w http.ResponseWriter, r *http.Request) {
 
 func kioskHandler(w http.ResponseWriter, r *http.Request) {
 	slog.Debug("Kiosk Page called by", "client_ip", r.RemoteAddr)
-	fmt.Fprintf(w, "Welcome to Go-Stock! Your home stock management made easy.")
-	fmt.Fprintf(w, "This is the kiosk page where you can quickly log items on the screen.\n\n")
-	// fmt.Fprint(w, "All Items:\n")
-	// items, err := listItems()
-	// if err != nil {
-	// 	slog.Error("Failed to list items", "error", err)
-	// 	fmt.Fprint(w, "Error retrieving items")
-	// 	return
-	// }
-	// for _, item := range items {
-	// 	fmt.Fprint(w, printItem(item))
-	// }
-	// // Placeholder for kiosk page logic
+	w.Header().Set("Content-Type", "text/html") // Tells the browser to render HTML
+
+	switch r.Method {
+		case "GET":
+			// DO NOTHING, JUST LOAD THE PAGE
+		
+		case "POST":
+			switch r.FormValue("action") {
+				case "add":
+					itemName := r.FormValue("name")
+					// Insert the item into the database
+					insertSQL := "INSERT INTO inventory (name, date_bought, expiration_date) VALUES (?, ?, ?)"
+					_, err = db.Exec(insertSQL, itemName, time.Now().Format("2006-01-02"), r.FormValue("expiration_date"))
+					if err != nil {
+						slog.Error("Failed to insert item", "item_name", itemName, "error", err)
+						fmt.Fprint(w, "Error inserting item")
+					}
+					slog.Debug("Item inserted successfully")
+				case "delete":
+					itemID := r.FormValue("id")
+					deleteSQL := "DELETE FROM inventory WHERE id = ?"
+					_, err = db.Exec(deleteSQL, itemID)
+					if err != nil {
+						slog.Error("Failed to delete item", "item_id", itemID, "error", err)
+						fmt.Fprint(w, "Error deleting item")
+					}
+					slog.Debug("Item deleted successfully")
+			}
+	}
+
+	searchQuery := r.FormValue("search")
+	items, err := listItems(searchQuery)
+
+	if err != nil {
+		slog.Error("Failed to list items", "error", err)
+		fmt.Fprint(w, "Error retrieving items")
+		return
+	}
+
+    // Load the pre-built HTML file
+	tmpl, err := template.ParseFiles("templates/kiosk.html")
+	if err != nil {
+		slog.Error("Failed to parse template file", "error", err)
+		return
+	}
+
+	// Send the HTML and the database items to the browser
+	tmpl.Execute(w, items)
 }
 
 func main() {
@@ -99,7 +147,7 @@ func main() {
 	}
 
 	if *version {
-		fmt.Println("go-stock version 0.1.0-beta.1")
+		fmt.Println(Version)
 		os.Exit(0)
 	}
 
