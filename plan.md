@@ -9,7 +9,7 @@ This is the plan for go-stock
 - Expiration Date
 
 ## User Interface
-**Pi Pico 2W** with a **touchscreen** on the fridge (or wherever it needs to be logged).The reason why ***wifi*** so it can display the local server
+**Raspberry Pie Zero 2 W** with a **touchscreen** on the fridge (or wherever it needs to be logged).The reason why ***wifi*** so it can display the local server
 
 *Coming Later:* a camera to try and identify the item with a popup saying if it is the item
 
