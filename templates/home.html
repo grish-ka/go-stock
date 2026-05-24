@@ -1,0 +1,40 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Go-Stock Home</title>
+</head>
+<body>
+    <h1>Welcome to Go-Stock!</h1>
+    
+    <form method="GET" action="/">
+        <input type="text" name="search" placeholder="Search items...">
+        <button type="submit">Search</button>
+        <button type="submit" formaction="/">Clear</button>
+
+    </form>
+
+    <h2>Current Stock:</h2>
+    <ul>
+        {{range .}}
+        <li>
+            <strong>{{.Name}}</strong> (Bought: {{.DateBought}}, Expires: {{.ExpirationDate}})
+        </li>
+        {{else}}
+        <li>No items in stock!</li>
+        {{end}}
+    </ul>
+
+    <div class="add-container" style="margin-bottom: 20px; padding: 15px; background: #e9ecef; border-radius: 8px;">
+        <h3>Add New Item</h3>
+        <form method="POST" action="/">
+            <label for="name">Item Name:</label><br>
+            <input type="text" name="name" placeholder="Item name (e.g., Eggs)" required><br>
+            <label for="expiration_date">Expiration Date:</label><br>
+            <input type="date" name="expiration_date" placeholder="Expiration date (e.g., 2023-12-31)" required><br><br>
+
+            <button type="submit">Add to Stock</button>
+        </form>
+    </div>
+</body>
+</html>

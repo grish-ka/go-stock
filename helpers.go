@@ -35,8 +35,8 @@ func printItem(item Item) string {
 	return output.String()
 }
 
-func listItems() ([]Item, error) {
-	rows, err := db.Query("SELECT id, name, date_bought, expiration_date FROM inventory")
+func listItems(name string) ([]Item, error) {
+	rows, err := db.Query("SELECT id, name, date_bought, expiration_date FROM inventory WHERE name LIKE ?", "%"+name+"%")
 	if err != nil {
 		return nil, err
 	}

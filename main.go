@@ -7,6 +7,7 @@ import (
 	"os"
 	"time"
 	"net/http"
+	"html/template"
 
 	"github.com/akamensky/argparse"
 	"github.com/lmittmann/tint"
@@ -17,35 +18,58 @@ import (
 
 func homeHandler(w http.ResponseWriter, r *http.Request) {
 	slog.Debug("Home Page called by", "client_ip", r.RemoteAddr)
-	fmt.Fprintf(w, "Welcome to Go-Stock! Your home stock management made easy.\n\n")
-	fmt.Fprint(w, "All Items:\n")
-	items, err := listItems()
+    w.Header().Set("Content-Type", "text/html") // Tells the browser to render HTML
+	items := []Item{} // Initialize an empty slice to hold items
+	searchQuery := "" // Initialize an empty search query
+
+	switch r.Method {
+		case "GET":
+			searchQuery = r.FormValue("search")
+		case "POST":
+			itemName := r.FormValue("name")
+			// Insert the item into the database
+			insertSQL := "INSERT INTO inventory (name, date_bought, expiration_date) VALUES (?, ?, ?)"
+			_, err = db.Exec(insertSQL, itemName, time.Now().Format("2006-01-02"), r.FormValue("expiration_date"))
+			if err != nil {
+				slog.Error("Failed to insert item", "item_name", itemName, "error", err)
+				fmt.Fprint(w, "Error inserting item")
+			}
+			slog.Debug("Item inserted successfully")
+	}
+    
+	items, err = listItems(searchQuery)
 	if err != nil {
 		slog.Error("Failed to list items", "error", err)
 		fmt.Fprint(w, "Error retrieving items")
 		return
 	}
-	for _, item := range items {
-		fmt.Fprint(w, printItem(item))
+
+    // Load the pre-built HTML file
+	tmpl, err := template.ParseFiles("templates/home.html")
+	if err != nil {
+		slog.Error("Failed to parse template file", "error", err)
+		return
 	}
-	// Placeholder for home page logic
+
+	// Send the HTML and the database items to the browser
+	tmpl.Execute(w, items)
 }
 
 func kioskHandler(w http.ResponseWriter, r *http.Request) {
 	slog.Debug("Kiosk Page called by", "client_ip", r.RemoteAddr)
 	fmt.Fprintf(w, "Welcome to Go-Stock! Your home stock management made easy.")
 	fmt.Fprintf(w, "This is the kiosk page where you can quickly log items on the screen.\n\n")
-	fmt.Fprint(w, "All Items:\n")
-	items, err := listItems()
-	if err != nil {
-		slog.Error("Failed to list items", "error", err)
-		fmt.Fprint(w, "Error retrieving items")
-		return
-	}
-	for _, item := range items {
-		fmt.Fprint(w, printItem(item))
-	}
-	// Placeholder for kiosk page logic
+	// fmt.Fprint(w, "All Items:\n")
+	// items, err := listItems()
+	// if err != nil {
+	// 	slog.Error("Failed to list items", "error", err)
+	// 	fmt.Fprint(w, "Error retrieving items")
+	// 	return
+	// }
+	// for _, item := range items {
+	// 	fmt.Fprint(w, printItem(item))
+	// }
+	// // Placeholder for kiosk page logic
 }
 
 func main() {
@@ -57,11 +81,26 @@ func main() {
 		Help:     "Enable detailed debug logging",
 	})
 
+	test := parser.Flag("t", "test", &argparse.Options{
+		Required: false,
+		Help:     "Enable tests",
+	})
+
+	version := parser.Flag("V", "version", &argparse.Options{
+		Required: false,
+		Help:     "Display version information and exit",
+	})
+
 	// 2. Parse the arguments
 	err = parser.Parse(os.Args)
 	if err != nil {
 		fmt.Print(parser.Usage(err))
 		os.Exit(1)
+	}
+
+	if *version {
+		fmt.Println("go-stock version 0.1.0-beta.1")
+		os.Exit(0)
 	}
 
 	// 3. Determine the log level based on the flag
@@ -79,7 +118,6 @@ func main() {
 
 	// --- Core logic starts here ---
 	slog.Info("go-stock started")
-	slog.Info("----------TESTS----------")
 	if *verbose {
 		slog.Warn("Verbose logging enabled")
 	}
@@ -109,6 +147,11 @@ func main() {
 	}
 	slog.Info("Inventory table verified/created")
 
+	slog.Info("----------TESTS----------")
+	if *test {
+		slog.Info("Running tests...")
+		// Placeholder for test logic
+	
 	// Time tracking calculations
 	now := time.Now()
 	cleanDate := now.Format("2006-01-02")
@@ -130,6 +173,8 @@ func main() {
 		DateBought:     cleanDate,
 		ExpirationDate: cleanExpirationDate,
 	}
+
+	Item2.Name = "Bread" // This line is just to show that we can modify the struct and it won't affect the original Item1
 
 	// This debug line will show up if you pass -v or --verbose
 	slog.Debug("Struct verification", "item", printItem(Item1))
@@ -171,7 +216,9 @@ func main() {
 	} else {
 		slog.Error("Item1 and Exported differ and the item was not extracted successfully", "original", printItem(Item1), "exported", printItem(Exported))
 	}
-
+} else {
+	slog.Warn("Tests Skipped")
+}
 	slog.Info("----------WEB SERVER----------")
 
 

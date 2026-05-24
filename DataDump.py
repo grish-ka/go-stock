@@ -1,7 +1,7 @@
 import os
 
 def generate_dump(output_file="code_dump.txt"):
-    target_extensions = {'.go', '.md'}
+    target_extensions = {'.go', '.md', '.py', '.txt', '.json', '.yaml', '.yml', '.html', '.css', '.js', '.sql', '.sh', '.bat', '.ps1', '.xml', '.csv', '.ini', '.cfg', '.log', '.dockerfile', '.makefile', '.gradle', '.pom', '.csproj', '.vbproj', '.fsproj', '.sln'}
     
     with open(output_file, 'w', encoding='utf-8') as outfile:
         for root, _, files in os.walk('.'):
