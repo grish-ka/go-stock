@@ -10,7 +10,7 @@ before:
 # The actual Go Compilation logic
 builds:
   - id: go-stock-binary
-    main: ./main.go
+    main: .
     binary: go-stock
     ldflags:
       - -X main.version={{.Version}}
