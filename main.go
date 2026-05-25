@@ -8,13 +8,18 @@ import (
 	"time"
 	"net/http"
 	"html/template"
+	"embed"
 
 	"github.com/akamensky/argparse"
 	"github.com/lmittmann/tint"
 	_ "modernc.org/sqlite"
 )
 
-var Version = "go-stock version 0.1.0-beta.2"
+var Version = "go-stock version 0.1.0-beta.7"
+
+// DO NOT DELETE THIS COMMENT, IT IS A SPECIAL GO COMMENT THAT ALLOWS US TO EMBED FILES INTO THE BINARY
+//go:embed templates/*.html
+var templateFiles embed.FS
 
 func homeHandler(w http.ResponseWriter, r *http.Request) {
 	slog.Debug("Home Page called by", "client_ip", r.RemoteAddr)
@@ -57,8 +62,8 @@ func homeHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-    // Load the pre-built HTML file
-	tmpl, err := template.ParseFiles("templates/home.html")
+    // Load the HTML file from the embedded memory
+	tmpl, err := template.ParseFS(templateFiles, "templates/home.html")
 	if err != nil {
 		slog.Error("Failed to parse template file", "error", err)
 		return
@@ -109,13 +114,11 @@ func kioskHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-    // Load the pre-built HTML file
-	tmpl, err := template.ParseFiles("templates/kiosk.html")
+    // Load the HTML file from the embedded memory
+	tmpl, err := template.ParseFS(templateFiles, "templates/kiosk.html")
 	if err != nil {
 		slog.Error("Failed to parse template file", "error", err)
-		return
-	}
-
+		return}
 	// Send the HTML and the database items to the browser
 	tmpl.Execute(w, items)
 }
